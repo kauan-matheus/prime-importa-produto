@@ -45,7 +45,7 @@ export default function Home() {
             </div>
             <h2 className="text-lg font-semibold text-slate-800">Nenhuma loja ativa</h2>
             <p className="text-sm text-slate-500 max-w-sm mt-2">
-              Selecione uma loja existente no topo ou clique em "+ Nova loja" para integrar com a Nuvemshop.
+              Selecione uma loja existente no topo ou clique em &quot;+ Nova loja&quot; para integrar com a Nuvemshop.
             </p>
           </div>
         ) : (
