@@ -20,10 +20,30 @@ class DriveFile:
 
 @lru_cache
 def _get_client():
+    import json
     settings = get_settings()
-    credentials = service_account.Credentials.from_service_account_file(
-        settings.google_service_account_file, scopes=SCOPES
-    )
+    
+    try:
+        with open(settings.google_service_account_file, "r", encoding="utf-8") as f:
+            info = json.load(f)
+        
+        # Corrige automaticamente problemas comuns de escape da chave privada ao copiar/colar em formulários web
+        if "private_key" in info and isinstance(info["private_key"], str):
+            pk = info["private_key"]
+            if "\\n" in pk:
+                info["private_key"] = pk.replace("\\n", "\n")
+            # Remove possíveis aspas duplicadas ou espaços extras nas pontas
+            info["private_key"] = info["private_key"].strip().strip('"').strip("'")
+            
+        credentials = service_account.Credentials.from_service_account_info(
+            info, scopes=SCOPES
+        )
+    except Exception:
+        # Fallback para o método padrão caso falte o arquivo ou ocorra algum erro na leitura manual
+        credentials = service_account.Credentials.from_service_account_file(
+            settings.google_service_account_file, scopes=SCOPES
+        )
+        
     return build("drive", "v3", credentials=credentials, cache_discovery=False)
 
 
