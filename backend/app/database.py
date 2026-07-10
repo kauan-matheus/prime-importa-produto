@@ -12,6 +12,13 @@ if db_url.startswith("postgres://"):
 elif db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
+# Log seguro do host de conexão do banco para depuração
+try:
+    db_host = db_url.split("@")[-1].split("/")[0]
+    print(f"INFO: Tentando conectar ao banco de dados no host: {db_host}")
+except Exception:
+    pass
+
 engine = create_engine(db_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
