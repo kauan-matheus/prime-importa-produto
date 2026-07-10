@@ -52,7 +52,8 @@ def _get_client():
             # Imprime os primeiros 30 e últimos 30 caracteres da chave privada com segurança (são apenas cabeçalhos)
             pk_start = pk[:30].replace("\n", "\\n")
             pk_end = pk[-30:].replace("\n", "\\n")
-            print(f"INFO-DEBUG: Comprimento da private_key: {pk_len} caracteres")
+            pk_md5 = hashlib.md5(pk.encode('utf-8')).hexdigest().upper()
+            print(f"INFO-DEBUG: Comprimento da private_key: {pk_len} caracteres | MD5 da string: {pk_md5}")
             print(f"INFO-DEBUG: Inicio da chave: '{pk_start}' | Fim da chave: '{pk_end}'")
             
             if "\\n" in pk:
