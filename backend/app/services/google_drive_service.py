@@ -21,52 +21,23 @@ class DriveFile:
 @lru_cache
 def _get_client():
     import json
-    import hashlib
-    import os
     settings = get_settings()
-    
     file_path = settings.google_service_account_file
-    print(f"INFO-DEBUG: Carregando arquivo de credenciais de: {file_path}")
-    
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, "rb") as f:
-                content = f.read()
-            size = len(content)
-            md5_hash = hashlib.md5(content).hexdigest().upper()
-            print(f"INFO-DEBUG: Tamanho do arquivo: {size} bytes | MD5: {md5_hash}")
-        except Exception as e:
-            print(f"INFO-DEBUG: Erro ao calcular hash do arquivo: {e}")
-    else:
-        print("INFO-DEBUG: Arquivo de credenciais NAO existe no caminho configurado!")
         
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             info = json.load(f)
         
-        print(f"INFO-DEBUG: Chaves encontradas no JSON: {list(info.keys())}")
-        
         if "private_key" in info and isinstance(info["private_key"], str):
             pk = info["private_key"]
-            pk_len = len(pk)
-            # Imprime os primeiros 30 e últimos 30 caracteres da chave privada com segurança (são apenas cabeçalhos)
-            pk_start = pk[:30].replace("\n", "\\n")
-            pk_end = pk[-30:].replace("\n", "\\n")
-            pk_md5 = hashlib.md5(pk.encode('utf-8')).hexdigest().upper()
-            print(f"INFO-DEBUG: Comprimento da private_key: {pk_len} caracteres | MD5 da string: {pk_md5}")
-            print(f"INFO-DEBUG: Inicio da chave: '{pk_start}' | Fim da chave: '{pk_end}'")
-            
             if "\\n" in pk:
-                print("INFO-DEBUG: Encontradas quebras de linha escapadas (\\\\n) na chave. Corrigindo...")
                 info["private_key"] = pk.replace("\\n", "\n")
-            
             info["private_key"] = info["private_key"].strip().strip('"').strip("'")
             
         credentials = service_account.Credentials.from_service_account_info(
             info, scopes=SCOPES
         )
-    except Exception as e:
-        print(f"INFO-DEBUG: Erro na leitura manual do JSON: {e}")
+    except Exception:
         # Fallback para o método padrão caso falte o arquivo ou ocorra algum erro na leitura manual
         credentials = service_account.Credentials.from_service_account_file(
             file_path, scopes=SCOPES
