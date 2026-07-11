@@ -1,6 +1,6 @@
 import io
-from dataclasses import dataclass
 from functools import lru_cache
+from dataclasses import dataclass
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -76,6 +76,7 @@ def list_image_files(folder_id: str) -> list[DriveFile]:
     return files
 
 
+@lru_cache(maxsize=512)
 def download_file(file_id: str) -> bytes:
     client = _get_client()
     request = client.files().get_media(fileId=file_id)
