@@ -1,7 +1,7 @@
 import mimetypes
 import io
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,10 +15,15 @@ router = APIRouter(prefix="/images", tags=["images"])
 
 
 @router.get("/next", response_model=ImageOut | None)
-def get_next_pending_image(db: Session = Depends(get_db)):
-    image = db.scalars(
-        select(Image).where(Image.status != ImageStatus.completed).order_by(Image.created_at.asc()).limit(1)
-    ).first()
+def get_next_pending_image(
+    after_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    query = select(Image).where(Image.status != ImageStatus.completed)
+    if after_id is not None:
+        query = query.where(Image.id > after_id)
+
+    image = db.scalars(query.order_by(Image.created_at.asc(), Image.id.asc()).limit(1)).first()
     if image is None:
         return None
     return ImageOut.from_image(image)
