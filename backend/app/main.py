@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,29 +24,22 @@ settings = get_settings()
 
 app = FastAPI(title="Prime Importa Produto", lifespan=lifespan)
 
-# Permite múltiplos origins separados por vírgula no .env e garante suporte a localhost, 127.0.0.1 e [::1] com qualquer porta
-import urllib.parse
+_origins = [origin.strip() for origin in settings.frontend_origin.split(",") if origin.strip()]
+_expanded_origins = list(_origins)
 
-origins = [origin.strip() for origin in settings.frontend_origin.split(",")]
-extended_origins = list(origins)
-for origin in origins:
-    try:
-        parsed = urllib.parse.urlparse(origin)
-        hostname = parsed.hostname
-        if hostname in ("localhost", "127.0.0.1", "[::1]", "::1"):
-            port_suffix = f":{parsed.port}" if parsed.port is not None else ""
-            scheme = parsed.scheme
-            for h in ("localhost", "127.0.0.1", "[::1]"):
-                local_url = f"{scheme}://{h}{port_suffix}"
-                if local_url not in extended_origins:
-                    extended_origins.append(local_url)
-    except Exception:
-        pass
-origins = extended_origins
+for origin in _origins:
+    parsed = urlparse(origin)
+    if parsed.scheme and parsed.hostname in {"localhost", "127.0.0.1", "::1", "[::1]"}:
+        port_suffix = f":{parsed.port}" if parsed.port is not None else ""
+        for hostname in ("localhost", "127.0.0.1", "::1"):
+            local_origin = f"{parsed.scheme}://{hostname}{port_suffix}"
+            if local_origin not in _expanded_origins:
+                _expanded_origins.append(local_origin)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=_expanded_origins,
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
