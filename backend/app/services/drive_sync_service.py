@@ -18,7 +18,7 @@ def sync_pending_images(db: Session) -> int:
     (mesmo conteúdo enviado sob outro nome/arquivo).
     """
     settings = get_settings()
-    drive_files = google_drive_service.list_webp_files(settings.google_drive_folder_id)
+    drive_files = google_drive_service.list_image_files(settings.google_drive_folder_id)
 
     known_ids = set(db.scalars(select(Image.drive_file_id)))
     known_hashes = set(db.scalars(select(Image.hash)))

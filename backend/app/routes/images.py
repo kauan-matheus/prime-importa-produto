@@ -1,3 +1,4 @@
+import mimetypes
 import io
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -30,4 +31,5 @@ def get_image_content(image_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Imagem não encontrada")
 
     content = google_drive_service.download_file(image.drive_file_id)
-    return StreamingResponse(io.BytesIO(content), media_type="image/webp")
+    media_type = mimetypes.guess_type(image.file_name)[0] or "application/octet-stream"
+    return StreamingResponse(io.BytesIO(content), media_type=media_type)

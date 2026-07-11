@@ -46,10 +46,10 @@ def _get_client():
     return build("drive", "v3", credentials=credentials, cache_discovery=False)
 
 
-def list_webp_files(folder_id: str) -> list[DriveFile]:
-    """Lista todos os .webp da pasta, sem duplicar por paginação."""
+def list_image_files(folder_id: str) -> list[DriveFile]:
+    """Lista imagens da pasta, sem duplicar por paginação."""
     client = _get_client()
-    query = f"'{folder_id}' in parents and mimeType='image/webp' and trashed=false"
+    query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
 
     files: list[DriveFile] = []
     page_token = None
@@ -58,7 +58,7 @@ def list_webp_files(folder_id: str) -> list[DriveFile]:
             client.files()
             .list(
                 q=query,
-                fields="nextPageToken, files(id, name, md5Checksum)",
+                fields="nextPageToken, files(id, name, md5Checksum, mimeType)",
                 pageToken=page_token,
                 pageSize=1000,
             )
