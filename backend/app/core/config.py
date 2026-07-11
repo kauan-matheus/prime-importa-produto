@@ -12,6 +12,8 @@ class Settings(BaseSettings):
 
     nuvemshop_api_base: str = "https://api.nuvemshop.com.br/2025-03"
     nuvemshop_user_agent: str = "PrimeImportaProduto (contato@suaempresa.com.br)"
+    nuvemshop_client_id: str = ""
+    nuvemshop_client_secret: str = ""
 
     frontend_origin: str = "http://localhost:3000"
 

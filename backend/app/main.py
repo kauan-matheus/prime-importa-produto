@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.database import Base, SessionLocal, engine
-from app.routes import images, products, stores
+from app.routes import auth, images, products, stores
 from app.services import sku_service
 from app.services.scheduler import start_scheduler, stop_scheduler
 
@@ -51,6 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(stores.router)
 app.include_router(images.router)
 app.include_router(products.router)
