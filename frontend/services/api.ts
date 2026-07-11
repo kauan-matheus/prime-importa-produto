@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Garante que a URL começa com https:// mesmo se a variável de ambiente estiver mal formatada
+const rawUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
