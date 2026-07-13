@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { StoreSelector } from "@/components/StoreSelector";
 import { ImageDisplay } from "@/components/ImageDisplay";
 import { ProductForm } from "@/components/ProductForm";
 import { NavTabs } from "@/components/NavTabs";
 import { useNextImage } from "@/hooks/useNextImage";
 import { useStoreCatalog } from "@/hooks/useStoreCatalog";
-import type { Store } from "@/types/store";
+import { useSelectedStore } from "@/hooks/useSelectedStore";
 import { Layers, CloudLightning, HelpCircle } from "lucide-react";
 
 export default function Home() {
-  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const { selectedStore, setSelectedStore } = useSelectedStore();
   const { image, loading: loadingImage, fetchNext } = useNextImage();
   const { categories, collections, brands } = useStoreCatalog(selectedStore?.id ?? null);
 

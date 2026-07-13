@@ -11,7 +11,7 @@ export function useNextImage() {
   const [nextImage, setNextImage] = useState<PendingImage | null>(null);
   const [loading, setLoading] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prefetchRef = useRef<number | null>(null);
+  const prefetchTokenRef = useRef(0);
 
   const warmImage = useCallback((pendingImage: PendingImage | null) => {
     if (!pendingImage || typeof window === "undefined") return;
@@ -21,7 +21,9 @@ export function useNextImage() {
 
   const loadNextAfter = useCallback(
     async (afterId?: number) => {
+      const token = ++prefetchTokenRef.current;
       const next = await imagesService.next(afterId);
+      if (token !== prefetchTokenRef.current) return next;
       setNextImage(next);
       warmImage(next);
       return next;

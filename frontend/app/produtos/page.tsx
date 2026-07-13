@@ -7,12 +7,12 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductEditDialog } from "@/components/ProductEditDialog";
 import { useProducts } from "@/hooks/useProducts";
 import { useStoreCatalog } from "@/hooks/useStoreCatalog";
-import type { Store } from "@/types/store";
+import { useSelectedStore } from "@/hooks/useSelectedStore";
 import type { Product } from "@/types/product";
 import { Layers, CloudLightning, PackageSearch } from "lucide-react";
 
 export default function ProdutosPage() {
-  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const { selectedStore, setSelectedStore } = useSelectedStore();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
