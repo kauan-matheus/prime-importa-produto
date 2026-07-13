@@ -4,6 +4,7 @@ import { useState } from "react";
 import { StoreSelector } from "@/components/StoreSelector";
 import { ImageDisplay } from "@/components/ImageDisplay";
 import { ProductForm } from "@/components/ProductForm";
+import { NavTabs } from "@/components/NavTabs";
 import { useNextImage } from "@/hooks/useNextImage";
 import { useStoreCatalog } from "@/hooks/useStoreCatalog";
 import type { Store } from "@/types/store";
@@ -31,7 +32,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="w-full sm:w-auto">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <NavTabs />
             <StoreSelector selectedStore={selectedStore} onSelect={setSelectedStore} />
           </div>
         </div>

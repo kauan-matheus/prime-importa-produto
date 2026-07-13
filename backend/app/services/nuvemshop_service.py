@@ -131,6 +131,42 @@ def create_product(store: Store, data: dict) -> dict:
         return response.json()
 
 
+def update_product(store: Store, nuvemshop_product_id: str, data: dict) -> dict:
+    category_ids = [cid for cid in (data.get("categoria_id"), data.get("collection_id")) if cid is not None]
+
+    product_payload = {
+        "name": {"pt": data["nome"]},
+        "description": {"pt": data.get("descricao") or ""},
+        "brand": data.get("marca") or "",
+        "categories": category_ids,
+    }
+
+    variant_payload = {
+        "price": str(data["preco"]),
+        "promotional_price": str(data["preco_promocional"]) if data.get("preco_promocional") else None,
+        "stock": data["estoque"],
+        "weight": str(data["peso"]) if data.get("peso") else None,
+        "width": str(data["largura"]) if data.get("largura") else None,
+        "height": str(data["altura"]) if data.get("altura") else None,
+        "depth": str(data["comprimento"]) if data.get("comprimento") else None,
+    }
+
+    with _client(store) as client:
+        response = client.put(f"/products/{nuvemshop_product_id}", json=product_payload)
+        response.raise_for_status()
+        product = response.json()
+
+        variants = product.get("variants") or []
+        if variants:
+            variant_id = variants[0]["id"]
+            variant_response = client.put(
+                f"/products/{nuvemshop_product_id}/variants/{variant_id}", json=variant_payload
+            )
+            variant_response.raise_for_status()
+
+        return product
+
+
 def add_product_image(store: Store, nuvemshop_product_id: str, image_bytes: bytes, filename: str) -> dict:
     payload = {
         "attachment": base64.b64encode(image_bytes).decode("ascii"),

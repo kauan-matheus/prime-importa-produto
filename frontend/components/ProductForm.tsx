@@ -35,7 +35,7 @@ const optionalNumberField = () =>
     z.coerce.number().min(0, "Deve ser maior ou igual a zero").optional()
   );
 
-const productSchema = z
+export const productSchema = z
   .object({
     nome: z.string().min(1, "Obrigatório"),
     descricao: z.string().optional(),
@@ -55,8 +55,8 @@ const productSchema = z
     { message: "Deve ser menor que o preço", path: ["preco_promocional"] }
   );
 
-type ProductFormInput = z.input<typeof productSchema>;
-type ProductFormValues = z.output<typeof productSchema>;
+export type ProductFormInput = z.input<typeof productSchema>;
+export type ProductFormValues = z.output<typeof productSchema>;
 
 type Props = {
   store: Store;
