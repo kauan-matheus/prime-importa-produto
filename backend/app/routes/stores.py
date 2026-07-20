@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -26,7 +27,11 @@ def list_stores(db: Session = Depends(get_db)):
 def create_store(payload: StoreCreate, db: Session = Depends(get_db)):
     store = Store(**payload.model_dump())
     db.add(store)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Já existe uma loja cadastrada com esse ID da Nuvemshop")
     db.refresh(store)
     return store
 
