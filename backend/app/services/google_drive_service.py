@@ -1,4 +1,5 @@
 import io
+import threading
 from functools import lru_cache
 from dataclasses import dataclass
 
@@ -9,6 +10,12 @@ from googleapiclient.http import MediaIoBaseDownload
 from app.core.config import get_settings
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
+
+# Limita downloads simultâneos do Drive: a instância de produção roda com pouca
+# memória, e sem esse limite N requisições concorrentes (ex: a fila de miniaturas
+# do import carregando várias imagens de uma vez) estouram a RAM e derrubam o
+# processo (502 em cascata, inclusive para requisições não relacionadas).
+_DOWNLOAD_SEMAPHORE = threading.Semaphore(3)
 
 
 @dataclass
@@ -76,13 +83,14 @@ def list_image_files(folder_id: str) -> list[DriveFile]:
     return files
 
 
-@lru_cache(maxsize=512)
+@lru_cache(maxsize=40)
 def download_file(file_id: str) -> bytes:
-    client = _get_client()
-    request = client.files().get_media(fileId=file_id)
-    buffer = io.BytesIO()
-    downloader = MediaIoBaseDownload(buffer, request)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
-    return buffer.getvalue()
+    with _DOWNLOAD_SEMAPHORE:
+        client = _get_client()
+        request = client.files().get_media(fileId=file_id)
+        buffer = io.BytesIO()
+        downloader = MediaIoBaseDownload(buffer, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        return buffer.getvalue()
