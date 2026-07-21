@@ -76,7 +76,7 @@ function QueueThumb({ image, scrollRootRef }: { image: PendingImage; scrollRootR
         return;
       }
       releaseRef.current = release;
-      setSrc(imagesService.contentUrl(image));
+      setSrc(imagesService.contentUrl(image, 96));
     });
 
     return () => {

@@ -3,5 +3,6 @@ import type { PendingImage } from "@/types/image";
 
 export const imagesService = {
   list: () => api.get<PendingImage[]>("/images"),
-  contentUrl: (image: PendingImage) => absoluteUrl(image.content_url),
+  contentUrl: (image: PendingImage, size?: number) =>
+    absoluteUrl(size ? `${image.content_url}?size=${size}` : image.content_url),
 };

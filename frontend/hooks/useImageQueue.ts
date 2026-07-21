@@ -15,7 +15,7 @@ export function useImageQueue() {
   const warmImage = useCallback((image: PendingImage | undefined | null) => {
     if (!image || typeof window === "undefined") return;
     const preloaded = new window.Image();
-    preloaded.src = imagesService.contentUrl(image);
+    preloaded.src = imagesService.contentUrl(image, 900);
   }, []);
 
   const refresh = useCallback(async () => {

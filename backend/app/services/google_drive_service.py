@@ -1,9 +1,11 @@
 import io
+import re
 import threading
 from functools import lru_cache
 from dataclasses import dataclass
 
 import httplib2
+import httpx
 import google_auth_httplib2
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -104,6 +106,8 @@ def list_image_files(folder_id: str) -> list[DriveFile]:
 
 @lru_cache(maxsize=40)
 def download_file(file_id: str) -> bytes:
+    """Baixa o arquivo original (qualidade completa). Lento — usado só na hora
+    de efetivamente subir a foto pro produto na Nuvemshop, nunca pra preview."""
     if not _DRIVE_API_LOCK.acquire(timeout=_LOCK_WAIT_TIMEOUT_SECONDS):
         raise TimeoutError("Drive ocupado processando outra requisição, tente novamente")
     try:
@@ -117,3 +121,35 @@ def download_file(file_id: str) -> bytes:
         return buffer.getvalue()
     finally:
         _DRIVE_API_LOCK.release()
+
+
+def _with_thumbnail_size(thumbnail_link: str, size: int) -> str:
+    if re.search(r"=s\d+", thumbnail_link):
+        return re.sub(r"=s\d+", f"=s{size}", thumbnail_link)
+    return f"{thumbnail_link}=s{size}"
+
+
+@lru_cache(maxsize=200)
+def get_preview_bytes(file_id: str, size: int = 1024) -> bytes:
+    """Preview rápido pra exibir na tela: usa a miniatura já gerada pelo Drive
+    (pequena, servida pelo CDN do Google) em vez de baixar o arquivo original
+    inteiro. Só busca o link no nosso client (protegido pelo lock, chamada
+    rápida de metadado) — o download da miniatura em si roda fora do lock,
+    direto no CDN do Google, então não trava outras requisições.
+    """
+    if not _DRIVE_API_LOCK.acquire(timeout=_LOCK_WAIT_TIMEOUT_SECONDS):
+        raise TimeoutError("Drive ocupado processando outra requisição, tente novamente")
+    try:
+        client = _get_client()
+        metadata = client.files().get(fileId=file_id, fields="thumbnailLink").execute()
+    finally:
+        _DRIVE_API_LOCK.release()
+
+    thumbnail_link = metadata.get("thumbnailLink")
+    if not thumbnail_link:
+        # arquivo sem miniatura gerada ainda (raro) — cai pro download completo
+        return download_file(file_id)
+
+    response = httpx.get(_with_thumbnail_size(thumbnail_link, size), timeout=15)
+    response.raise_for_status()
+    return response.content

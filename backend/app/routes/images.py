@@ -29,11 +29,17 @@ def list_images(
 
 
 @router.get("/{image_id}/content")
-def get_image_content(image_id: int, db: Session = Depends(get_db)):
+def get_image_content(
+    image_id: int,
+    size: int = Query(default=1024, ge=64, le=2048),
+    db: Session = Depends(get_db),
+):
     image = db.get(Image, image_id)
     if image is None:
         raise HTTPException(status_code=404, detail="Imagem não encontrada")
 
-    content = google_drive_service.download_file(image.drive_file_id)
+    # Preview rápido (miniatura do Drive) — o arquivo original completo só é
+    # baixado na hora de efetivamente subir a foto pro produto na Nuvemshop.
+    content = google_drive_service.get_preview_bytes(image.drive_file_id, size=size)
     media_type = mimetypes.guess_type(image.file_name)[0] or "application/octet-stream"
     return StreamingResponse(io.BytesIO(content), media_type=media_type)

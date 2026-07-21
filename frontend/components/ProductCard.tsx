@@ -21,7 +21,7 @@ export function ProductCard({ product, onEdit }: Props) {
         {product.content_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={absoluteUrl(product.content_url)}
+            src={absoluteUrl(`${product.content_url}?size=300`)}
             alt={product.nome}
             className="w-full h-full object-cover"
           />

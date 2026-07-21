@@ -40,7 +40,7 @@ export function ImageDisplay({ image, loading }: Props) {
       <div className="relative w-full max-w-lg aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center shadow-sm group-hover:border-indigo-500/30 transition-all duration-300">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imagesService.contentUrl(image)}
+          src={imagesService.contentUrl(image, 900)}
           alt={image.file_name}
           className="max-w-full max-h-full object-contain p-2 rounded-xl transition-all duration-500 group-hover:scale-[1.02]"
         />
