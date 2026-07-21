@@ -11,11 +11,13 @@ from app.core.config import get_settings
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
-# Limita downloads simultâneos do Drive: a instância de produção roda com pouca
-# memória, e sem esse limite N requisições concorrentes (ex: a fila de miniaturas
-# do import carregando várias imagens de uma vez) estouram a RAM e derrubam o
-# processo (502 em cascata, inclusive para requisições não relacionadas).
-_DOWNLOAD_SEMAPHORE = threading.Semaphore(3)
+# O client do Drive (_get_client) é cacheado e reusado entre threads, mas o
+# transporte HTTP por baixo (httplib2) não é thread-safe: duas chamadas
+# concorrentes usando o mesmo client corrompem uma a outra (erros aleatórios
+# em ~1s, mesmo com poucas requisições ao mesmo tempo). Esse lock serializa
+# toda chamada à API do Drive (list e download) — sem isso, qualquer rajada de
+# 2+ requisições simultâneas falha de forma intermitente.
+_DRIVE_API_LOCK = threading.Lock()
 
 
 @dataclass
@@ -55,37 +57,38 @@ def _get_client():
 
 def list_image_files(folder_id: str) -> list[DriveFile]:
     """Lista imagens da pasta, sem duplicar por paginação."""
-    client = _get_client()
     query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
 
     files: list[DriveFile] = []
     page_token = None
-    while True:
-        response = (
-            client.files()
-            .list(
-                q=query,
-                fields="nextPageToken, files(id, name, md5Checksum, mimeType)",
-                pageToken=page_token,
-                pageSize=1000,
+    with _DRIVE_API_LOCK:
+        client = _get_client()
+        while True:
+            response = (
+                client.files()
+                .list(
+                    q=query,
+                    fields="nextPageToken, files(id, name, md5Checksum, mimeType)",
+                    pageToken=page_token,
+                    pageSize=1000,
+                )
+                .execute()
             )
-            .execute()
-        )
-        for f in response.get("files", []):
-            if not f.get("md5Checksum"):
-                continue
-            files.append(DriveFile(id=f["id"], name=f["name"], md5_checksum=f["md5Checksum"]))
+            for f in response.get("files", []):
+                if not f.get("md5Checksum"):
+                    continue
+                files.append(DriveFile(id=f["id"], name=f["name"], md5_checksum=f["md5Checksum"]))
 
-        page_token = response.get("nextPageToken")
-        if not page_token:
-            break
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
 
     return files
 
 
 @lru_cache(maxsize=40)
 def download_file(file_id: str) -> bytes:
-    with _DOWNLOAD_SEMAPHORE:
+    with _DRIVE_API_LOCK:
         client = _get_client()
         request = client.files().get_media(fileId=file_id)
         buffer = io.BytesIO()
