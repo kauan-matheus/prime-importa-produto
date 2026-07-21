@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 //    componente tivesse sua própria fila, abrir o modal em cima da sidebar
 //    dobraria a concorrência real sem a gente perceber.
 let activeThumbLoads = 0;
-const MAX_CONCURRENT_THUMBS = 2;
+const MAX_CONCURRENT_THUMBS = 4;
 const thumbWaiters: (() => void)[] = [];
 
 function acquireThumbSlot(): Promise<() => void> {
