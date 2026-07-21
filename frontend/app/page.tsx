@@ -18,7 +18,7 @@ export default function Home() {
   const {
     current: image,
     loading: loadingImage,
-    queue,
+    workable,
     position,
     total,
     selectId,
@@ -109,12 +109,12 @@ export default function Home() {
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-1.5 pb-2">
                   Fila de importação
                 </h4>
-                <ImageQueueSidebar images={queue} currentId={image?.id ?? null} onSelect={selectId} />
+                <ImageQueueSidebar images={workable} currentId={image?.id ?? null} onSelect={selectId} />
               </div>
             </div>
 
             <ImagePickerModal
-              images={queue}
+              images={workable}
               currentId={image?.id ?? null}
               open={pickerOpen}
               onOpenChange={setPickerOpen}

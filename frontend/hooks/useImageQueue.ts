@@ -93,7 +93,9 @@ export function useImageQueue() {
   return {
     current,
     loading,
-    queue: images,
+    // fila de trabalho pra exibir (sidebar/modal) — não inclui produtos já
+    // criados, senão a lista fica cheia de itens que não dá mais pra escolher
+    workable,
     position,
     total: workable.length,
     selectId,
