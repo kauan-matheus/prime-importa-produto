@@ -130,12 +130,15 @@ def _with_thumbnail_size(thumbnail_link: str, size: int) -> str:
 
 
 @lru_cache(maxsize=200)
-def get_preview_bytes(file_id: str, size: int = 1024) -> bytes:
+def get_preview_bytes(file_id: str, size: int = 1024) -> tuple[bytes, str]:
     """Preview rápido pra exibir na tela: usa a miniatura já gerada pelo Drive
     (pequena, servida pelo CDN do Google) em vez de baixar o arquivo original
     inteiro. Só busca o link no nosso client (protegido pelo lock, chamada
     rápida de metadado) — o download da miniatura em si roda fora do lock,
     direto no CDN do Google, então não trava outras requisições.
+
+    Retorna (bytes, origem) — "thumbnail" ou "original-fallback" — pra dar pra
+    diagnosticar de fora (ex: header de resposta) qual caminho foi usado.
     """
     if not _DRIVE_API_LOCK.acquire(timeout=_LOCK_WAIT_TIMEOUT_SECONDS):
         raise TimeoutError("Drive ocupado processando outra requisição, tente novamente")
@@ -148,8 +151,9 @@ def get_preview_bytes(file_id: str, size: int = 1024) -> bytes:
     thumbnail_link = metadata.get("thumbnailLink")
     if not thumbnail_link:
         # arquivo sem miniatura gerada ainda (raro) — cai pro download completo
-        return download_file(file_id)
+        return download_file(file_id), "original-fallback-no-link"
 
     response = httpx.get(_with_thumbnail_size(thumbnail_link, size), timeout=15)
-    response.raise_for_status()
-    return response.content
+    if response.status_code != 200:
+        return download_file(file_id), f"original-fallback-http-{response.status_code}"
+    return response.content, "thumbnail"
