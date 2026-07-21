@@ -91,7 +91,15 @@ export function DriveThumb({ image, scrollRootRef, size = 96, className, iconCla
         releaseRef.current = null;
       }
     };
-  }, [nearViewport, image, size]);
+    // Depende só de id/size (valores estáveis), não do objeto `image` inteiro:
+    // a cada poll da fila (8s), a API devolve uma nova referência pra cada
+    // imagem mesmo sem nada ter mudado. Se o efeito dependesse do objeto,
+    // toda miniatura ainda carregando reiniciava a cada poll e voltava pro
+    // fim da fila de concorrência — com 30+ itens e poucos slots, a maioria
+    // nunca chegava a terminar (só as poucas rápidas o suficiente venciam
+    // a corrida contra o próximo poll).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nearViewport, image.id, size]);
 
   function releaseSlot() {
     if (releaseRef.current) {

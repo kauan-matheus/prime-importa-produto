@@ -56,9 +56,18 @@ export function useImageQueue() {
   const position = useMemo(() => workable.findIndex((img) => img.id === currentId), [workable, currentId]);
   const current = useMemo(() => images.find((img) => img.id === currentId) ?? null, [images, currentId]);
 
+  const nextWorkableId = position >= 0 ? workable[position + 1]?.id : undefined;
+
   useEffect(() => {
-    if (position >= 0) warmImage(workable[position + 1]);
-  }, [workable, position, warmImage]);
+    if (nextWorkableId === undefined) return;
+    const nextImage = workable.find((img) => img.id === nextWorkableId);
+    if (nextImage) warmImage(nextImage);
+    // Depende só do id do "próximo" (estável), não do array `workable` inteiro:
+    // o poll da fila (8s) sempre devolve um array novo, mesmo sem nada mudar
+    // de verdade, o que reiniciaria esse efeito e ficaria re-pré-carregando a
+    // mesma imagem sem necessidade.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextWorkableId, warmImage]);
 
   const selectId = useCallback((id: number) => {
     setCurrentId(id);
