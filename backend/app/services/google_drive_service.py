@@ -3,6 +3,8 @@ import threading
 from functools import lru_cache
 from dataclasses import dataclass
 
+import httplib2
+import google_auth_httplib2
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -11,6 +13,12 @@ from app.core.config import get_settings
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
+# httplib2 sem timeout fica pendurado pra sempre numa conexão travada/lenta do
+# Google — e como isso acontece dentro do lock abaixo, uma única chamada presa
+# derruba o endpoint de imagens inteiro (todo mundo espera um lock que nunca é
+# liberado). Timeout aqui garante que a chamada sempre falha em vez de travar.
+_HTTP_TIMEOUT_SECONDS = 30
+
 # O client do Drive (_get_client) é cacheado e reusado entre threads, mas o
 # transporte HTTP por baixo (httplib2) não é thread-safe: duas chamadas
 # concorrentes usando o mesmo client corrompem uma a outra (erros aleatórios
@@ -18,6 +26,7 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 # toda chamada à API do Drive (list e download) — sem isso, qualquer rajada de
 # 2+ requisições simultâneas falha de forma intermitente.
 _DRIVE_API_LOCK = threading.Lock()
+_LOCK_WAIT_TIMEOUT_SECONDS = 45
 
 
 @dataclass
@@ -51,17 +60,22 @@ def _get_client():
         credentials = service_account.Credentials.from_service_account_file(
             file_path, scopes=SCOPES
         )
-        
-    return build("drive", "v3", credentials=credentials, cache_discovery=False)
+
+    authorized_http = google_auth_httplib2.AuthorizedHttp(
+        credentials, http=httplib2.Http(timeout=_HTTP_TIMEOUT_SECONDS)
+    )
+    return build("drive", "v3", http=authorized_http, cache_discovery=False)
 
 
 def list_image_files(folder_id: str) -> list[DriveFile]:
     """Lista imagens da pasta, sem duplicar por paginação."""
     query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
 
-    files: list[DriveFile] = []
-    page_token = None
-    with _DRIVE_API_LOCK:
+    if not _DRIVE_API_LOCK.acquire(timeout=_LOCK_WAIT_TIMEOUT_SECONDS):
+        raise TimeoutError("Drive ocupado processando outra requisição, tente novamente")
+    try:
+        files: list[DriveFile] = []
+        page_token = None
         client = _get_client()
         while True:
             response = (
@@ -82,13 +96,17 @@ def list_image_files(folder_id: str) -> list[DriveFile]:
             page_token = response.get("nextPageToken")
             if not page_token:
                 break
+    finally:
+        _DRIVE_API_LOCK.release()
 
     return files
 
 
 @lru_cache(maxsize=40)
 def download_file(file_id: str) -> bytes:
-    with _DRIVE_API_LOCK:
+    if not _DRIVE_API_LOCK.acquire(timeout=_LOCK_WAIT_TIMEOUT_SECONDS):
+        raise TimeoutError("Drive ocupado processando outra requisição, tente novamente")
+    try:
         client = _get_client()
         request = client.files().get_media(fileId=file_id)
         buffer = io.BytesIO()
@@ -97,3 +115,5 @@ def download_file(file_id: str) -> bytes:
         while not done:
             _, done = downloader.next_chunk()
         return buffer.getvalue()
+    finally:
+        _DRIVE_API_LOCK.release()
