@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
@@ -49,3 +50,10 @@ app.include_router(auth.router)
 app.include_router(stores.router)
 app.include_router(images.router)
 app.include_router(products.router)
+
+
+@app.get("/version")
+def version():
+    # Permite confirmar de fora qual commit está realmente no ar, sem depender
+    # de olhar o dashboard do Render (RENDER_GIT_COMMIT é preenchido automaticamente).
+    return {"commit": os.environ.get("RENDER_GIT_COMMIT", "unknown")}
