@@ -1,117 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, AlertTriangle, Circle, ImageIcon } from "lucide-react";
-import { imagesService } from "@/services/imagesService";
+import { useRef } from "react";
+import { CheckCircle2, AlertTriangle, Circle } from "lucide-react";
 import type { PendingImage } from "@/types/image";
 import { cn } from "@/lib/utils";
+import { DriveThumb } from "@/components/DriveThumb";
 
 type Props = {
   images: PendingImage[];
   currentId: number | null;
   onSelect: (id: number) => void;
 };
-
-// O backend roda numa instância com pouca memória: baixar várias fotos do
-// Drive ao mesmo tempo derruba o processo (502 em cascata, inclusive pra
-// imagem atual, que nem tem relação com a fila). Por isso as miniaturas:
-// 1) só começam a carregar quando entram (ou quase) na área visível, e
-// 2) carregam uma de cada vez — fila global de concorrência 1, nunca em paralelo.
-let activeThumbLoads = 0;
-const MAX_CONCURRENT_THUMBS = 1;
-const thumbWaiters: (() => void)[] = [];
-
-function acquireThumbSlot(): Promise<() => void> {
-  return new Promise((resolve) => {
-    const grant = () => {
-      let released = false;
-      resolve(() => {
-        if (released) return;
-        released = true;
-        activeThumbLoads--;
-        const next = thumbWaiters.shift();
-        if (next) next();
-      });
-    };
-    if (activeThumbLoads < MAX_CONCURRENT_THUMBS) {
-      activeThumbLoads++;
-      grant();
-    } else {
-      thumbWaiters.push(() => {
-        activeThumbLoads++;
-        grant();
-      });
-    }
-  });
-}
-
-function QueueThumb({ image, scrollRootRef }: { image: PendingImage; scrollRootRef: React.RefObject<HTMLElement | null> }) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const releaseRef = useRef<(() => void) | null>(null);
-  const [nearViewport, setNearViewport] = useState(false);
-  const [src, setSrc] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (nearViewport || !wrapperRef.current) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setNearViewport(true);
-          observer.disconnect();
-        }
-      },
-      { root: scrollRootRef.current, rootMargin: "150px" }
-    );
-    observer.observe(wrapperRef.current);
-    return () => observer.disconnect();
-  }, [nearViewport, scrollRootRef]);
-
-  useEffect(() => {
-    if (!nearViewport) return;
-    let cancelled = false;
-
-    acquireThumbSlot().then((release) => {
-      if (cancelled) {
-        release();
-        return;
-      }
-      releaseRef.current = release;
-      setSrc(imagesService.contentUrl(image, 96));
-    });
-
-    return () => {
-      cancelled = true;
-      if (releaseRef.current) {
-        releaseRef.current();
-        releaseRef.current = null;
-      }
-    };
-  }, [nearViewport, image]);
-
-  function releaseSlot() {
-    if (releaseRef.current) {
-      releaseRef.current();
-      releaseRef.current = null;
-    }
-  }
-
-  return (
-    <div ref={wrapperRef} className="w-8 h-8 rounded-md overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt={image.file_name}
-          className="w-full h-full object-cover"
-          onLoad={releaseSlot}
-          onError={releaseSlot}
-        />
-      ) : (
-        <ImageIcon className="w-3.5 h-3.5 text-slate-300" />
-      )}
-    </div>
-  );
-}
 
 export function ImageQueueSidebar({ images, currentId, onSelect }: Props) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
@@ -142,7 +41,7 @@ export function ImageQueueSidebar({ images, currentId, onSelect }: Props) {
               isDone ? "opacity-50 cursor-default hover:border-slate-200" : "cursor-pointer"
             )}
           >
-            <QueueThumb image={image} scrollRootRef={scrollRootRef} />
+            <DriveThumb image={image} scrollRootRef={scrollRootRef} size={96} className="w-8 h-8" />
             <span className="flex-1 min-w-0 truncate text-xs font-medium text-slate-700">{image.file_name}</span>
             {isDone ? (
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />

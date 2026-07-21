@@ -1,15 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { StoreSelector } from "@/components/StoreSelector";
 import { ImageDisplay } from "@/components/ImageDisplay";
 import { ImageQueueSidebar } from "@/components/ImageQueueSidebar";
+import { ImagePickerModal } from "@/components/ImagePickerModal";
 import { ProductForm } from "@/components/ProductForm";
 import { NavTabs } from "@/components/NavTabs";
 import { Button } from "@/components/ui/button";
 import { useImageQueue } from "@/hooks/useImageQueue";
 import { useStoreCatalog } from "@/hooks/useStoreCatalog";
 import { useSelectedStore } from "@/hooks/useSelectedStore";
-import { Layers, CloudLightning, HelpCircle, ChevronLeft, SkipForward } from "lucide-react";
+import { Layers, CloudLightning, HelpCircle, ChevronLeft, SkipForward, Grid2x2 } from "lucide-react";
 
 export default function Home() {
   const { selectedStore, setSelectedStore } = useSelectedStore();
@@ -25,6 +27,7 @@ export default function Home() {
     completeCurrentAndAdvance,
   } = useImageQueue();
   const { categories, collections, brands } = useStoreCatalog(selectedStore?.id ?? null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-12">
@@ -95,6 +98,9 @@ export default function Home() {
                     >
                       Pular <SkipForward className="w-3.5 h-3.5" />
                     </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+                      <Grid2x2 className="w-3.5 h-3.5" /> Escolher foto
+                    </Button>
                   </div>
                 )}
               </div>
@@ -106,6 +112,14 @@ export default function Home() {
                 <ImageQueueSidebar images={queue} currentId={image?.id ?? null} onSelect={selectId} />
               </div>
             </div>
+
+            <ImagePickerModal
+              images={queue}
+              currentId={image?.id ?? null}
+              open={pickerOpen}
+              onOpenChange={setPickerOpen}
+              onSelect={selectId}
+            />
 
             {/* Formulário de Produto (Direita) */}
             <div className="lg:col-span-7 flex flex-col gap-4">
