@@ -12,21 +12,51 @@ type Props = {
   onSelect: (id: number) => void;
 };
 
-// Só busca a miniatura quando ela entra (ou quase entra) na área visível da
-// lista. Sem isso, uma fila com dezenas de itens dispara dezenas de downloads
-// simultâneos do Drive assim que a página carrega — o backend roda com pouca
-// memória e não aguenta essa rajada (derruba o processo e quebra até a imagem
-// atual, que nem tem relação com a fila).
+// O backend roda numa instância com pouca memória: baixar várias fotos do
+// Drive ao mesmo tempo derruba o processo (502 em cascata, inclusive pra
+// imagem atual, que nem tem relação com a fila). Por isso as miniaturas:
+// 1) só começam a carregar quando entram (ou quase) na área visível, e
+// 2) carregam uma de cada vez — fila global de concorrência 1, nunca em paralelo.
+let activeThumbLoads = 0;
+const MAX_CONCURRENT_THUMBS = 1;
+const thumbWaiters: (() => void)[] = [];
+
+function acquireThumbSlot(): Promise<() => void> {
+  return new Promise((resolve) => {
+    const grant = () => {
+      let released = false;
+      resolve(() => {
+        if (released) return;
+        released = true;
+        activeThumbLoads--;
+        const next = thumbWaiters.shift();
+        if (next) next();
+      });
+    };
+    if (activeThumbLoads < MAX_CONCURRENT_THUMBS) {
+      activeThumbLoads++;
+      grant();
+    } else {
+      thumbWaiters.push(() => {
+        activeThumbLoads++;
+        grant();
+      });
+    }
+  });
+}
+
 function QueueThumb({ image, scrollRootRef }: { image: PendingImage; scrollRootRef: React.RefObject<HTMLElement | null> }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const releaseRef = useRef<(() => void) | null>(null);
+  const [nearViewport, setNearViewport] = useState(false);
+  const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
-    if (visible || !wrapperRef.current) return;
+    if (nearViewport || !wrapperRef.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          setVisible(true);
+          setNearViewport(true);
           observer.disconnect();
         }
       },
@@ -34,13 +64,48 @@ function QueueThumb({ image, scrollRootRef }: { image: PendingImage; scrollRootR
     );
     observer.observe(wrapperRef.current);
     return () => observer.disconnect();
-  }, [visible, scrollRootRef]);
+  }, [nearViewport, scrollRootRef]);
+
+  useEffect(() => {
+    if (!nearViewport) return;
+    let cancelled = false;
+
+    acquireThumbSlot().then((release) => {
+      if (cancelled) {
+        release();
+        return;
+      }
+      releaseRef.current = release;
+      setSrc(imagesService.contentUrl(image));
+    });
+
+    return () => {
+      cancelled = true;
+      if (releaseRef.current) {
+        releaseRef.current();
+        releaseRef.current = null;
+      }
+    };
+  }, [nearViewport, image]);
+
+  function releaseSlot() {
+    if (releaseRef.current) {
+      releaseRef.current();
+      releaseRef.current = null;
+    }
+  }
 
   return (
     <div ref={wrapperRef} className="w-8 h-8 rounded-md overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
-      {visible ? (
+      {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imagesService.contentUrl(image)} alt={image.file_name} className="w-full h-full object-cover" />
+        <img
+          src={src}
+          alt={image.file_name}
+          className="w-full h-full object-cover"
+          onLoad={releaseSlot}
+          onError={releaseSlot}
+        />
       ) : (
         <ImageIcon className="w-3.5 h-3.5 text-slate-300" />
       )}
