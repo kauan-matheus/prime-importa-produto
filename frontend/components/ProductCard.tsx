@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { absoluteUrl } from "@/services/api";
+import { DriveThumb } from "@/components/DriveThumb";
 import type { Product } from "@/types/product";
 import { ImageOff, Pencil } from "lucide-react";
 
@@ -19,11 +19,11 @@ export function ProductCard({ product, onEdit }: Props) {
     >
       <div className="aspect-square w-full bg-slate-50 flex items-center justify-center overflow-hidden rounded-t-xl">
         {product.content_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={absoluteUrl(`${product.content_url}?size=300`)}
-            alt={product.nome}
-            className="w-full h-full object-cover"
+          <DriveThumb
+            image={{ id: product.id, content_url: product.content_url, file_name: product.nome }}
+            size={300}
+            className="w-full h-full"
+            iconClassName="w-8 h-8"
           />
         ) : (
           <ImageOff className="w-8 h-8 text-slate-300" />

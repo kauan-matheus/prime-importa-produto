@@ -3,8 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { ImageIcon } from "lucide-react";
 import { imagesService } from "@/services/imagesService";
-import type { PendingImage } from "@/types/image";
 import { cn } from "@/lib/utils";
+
+type Thumbnailable = {
+  id: number;
+  content_url: string;
+  file_name?: string;
+};
 
 // O backend baixa a miniatura do Drive sob demanda; uma rajada grande de
 // requisições simultâneas ainda pesa na instância (pouca memória). Por isso
@@ -42,8 +47,12 @@ function acquireThumbSlot(): Promise<() => void> {
 }
 
 type Props = {
-  image: PendingImage;
-  scrollRootRef: React.RefObject<HTMLElement | null>;
+  image: Thumbnailable;
+  // Opcional: passa a área com scroll próprio (sidebar/modal) quando o
+  // componente vive dentro de um container com overflow. Numa grade solta na
+  // página (ex: grid de produtos), deixa de fora — o IntersectionObserver usa
+  // a janela do navegador como referência.
+  scrollRootRef?: React.RefObject<HTMLElement | null>;
   size?: number;
   className?: string;
   iconClassName?: string;
@@ -65,7 +74,7 @@ export function DriveThumb({ image, scrollRootRef, size = 96, className, iconCla
           observer.disconnect();
         }
       },
-      { root: scrollRootRef.current, rootMargin: "150px" }
+      { root: scrollRootRef?.current, rootMargin: "150px" }
     );
     observer.observe(wrapperRef.current);
     return () => observer.disconnect();
@@ -114,7 +123,7 @@ export function DriveThumb({ image, scrollRootRef, size = 96, className, iconCla
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
-          alt={image.file_name}
+          alt={image.file_name ?? ""}
           className="w-full h-full object-cover"
           onLoad={releaseSlot}
           onError={() => {
