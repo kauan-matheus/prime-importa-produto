@@ -14,19 +14,18 @@ from app.services import google_drive_service
 router = APIRouter(prefix="/images", tags=["images"])
 
 
-@router.get("/next", response_model=ImageOut | None)
-def get_next_pending_image(
-    after_id: int | None = Query(default=None),
+@router.get("", response_model=list[ImageOut])
+def list_images(
+    status: ImageStatus | None = Query(default=None),
+    limit: int = Query(default=1000, le=2000),
     db: Session = Depends(get_db),
 ):
-    query = select(Image).where(Image.status != ImageStatus.completed)
-    if after_id is not None:
-        query = query.where(Image.id > after_id)
+    query = select(Image)
+    if status is not None:
+        query = query.where(Image.status == status)
 
-    image = db.scalars(query.order_by(Image.created_at.asc(), Image.id.asc()).limit(1)).first()
-    if image is None:
-        return None
-    return ImageOut.from_image(image)
+    images = db.scalars(query.order_by(Image.created_at.asc(), Image.id.asc()).limit(limit)).all()
+    return [ImageOut.from_image(image) for image in images]
 
 
 @router.get("/{image_id}/content")

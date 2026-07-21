@@ -18,9 +18,10 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { productSchema, type ProductFormInput, type ProductFormValues } from "@/components/ProductForm";
 import { productsService } from "@/services/productsService";
-import { ApiError } from "@/services/api";
+import { ApiError, absoluteUrl } from "@/services/api";
 import type { Category } from "@/types/store";
 import type { Product } from "@/types/product";
+import { ImageOff } from "lucide-react";
 
 type Props = {
   product: Product | null;
@@ -105,6 +106,19 @@ export function ProductEditDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="w-28 h-28 mx-auto rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
+            {product.content_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={absoluteUrl(product.content_url)}
+                alt={product.nome}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <ImageOff className="w-6 h-6 text-slate-300" />
+            )}
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="edit-nome" className="text-sm font-semibold text-slate-600">Nome do Produto</Label>
             <Input

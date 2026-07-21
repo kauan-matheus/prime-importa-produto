@@ -2,16 +2,28 @@
 
 import { StoreSelector } from "@/components/StoreSelector";
 import { ImageDisplay } from "@/components/ImageDisplay";
+import { ImageQueueSidebar } from "@/components/ImageQueueSidebar";
 import { ProductForm } from "@/components/ProductForm";
 import { NavTabs } from "@/components/NavTabs";
-import { useNextImage } from "@/hooks/useNextImage";
+import { Button } from "@/components/ui/button";
+import { useImageQueue } from "@/hooks/useImageQueue";
 import { useStoreCatalog } from "@/hooks/useStoreCatalog";
 import { useSelectedStore } from "@/hooks/useSelectedStore";
-import { Layers, CloudLightning, HelpCircle } from "lucide-react";
+import { Layers, CloudLightning, HelpCircle, ChevronLeft, SkipForward } from "lucide-react";
 
 export default function Home() {
   const { selectedStore, setSelectedStore } = useSelectedStore();
-  const { image, loading: loadingImage, fetchNext } = useNextImage();
+  const {
+    current: image,
+    loading: loadingImage,
+    queue,
+    position,
+    total,
+    selectId,
+    skip,
+    goPrev,
+    completeCurrentAndAdvance,
+  } = useImageQueue();
   const { categories, collections, brands } = useStoreCatalog(selectedStore?.id ?? null);
 
   return (
@@ -56,12 +68,42 @@ export default function Home() {
               <div className="flex items-center justify-between px-1">
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Imagem Pendente</h3>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
-                  Fila do Drive
+                  {total > 0 && position >= 0 ? `${position + 1} de ${total}` : "Fila do Drive"}
                 </span>
               </div>
-              
+
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-300">
                 <ImageDisplay image={image} loading={loadingImage} />
+
+                {image && (
+                  <div className="flex items-center gap-2 mt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={goPrev}
+                      disabled={position <= 0}
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={skip}
+                      disabled={position < 0 || position >= total - 1}
+                    >
+                      Pular <SkipForward className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-1.5 pb-2">
+                  Fila de importação
+                </h4>
+                <ImageQueueSidebar images={queue} currentId={image?.id ?? null} onSelect={selectId} />
               </div>
             </div>
 
@@ -84,7 +126,7 @@ export default function Home() {
                     categories={categories}
                     collections={collections}
                     brands={brands}
-                    onSaved={fetchNext}
+                    onSaved={completeCurrentAndAdvance}
                   />
                 ) : (
                   <div className="text-center py-12 text-slate-400">
