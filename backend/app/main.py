@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.routes import auth, images, products, stores
-from app.services import sku_service
+from app.services import google_drive_service, sku_service
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -57,3 +57,25 @@ def version():
     # Permite confirmar de fora qual commit está realmente no ar, sem depender
     # de olhar o dashboard do Render (RENDER_GIT_COMMIT é preenchido automaticamente).
     return {"commit": os.environ.get("RENDER_GIT_COMMIT", "unknown")}
+
+
+@app.get("/debug/drive-folder")
+def debug_drive_folder():
+    """Diagnóstico temporário: mostra tudo que existe na pasta configurada do
+    Drive (inclusive subpastas e arquivos sem checksum), pra confirmar se a
+    sincronização normal (que ignora os dois) está deixando fotos de fora."""
+    raw = google_drive_service.debug_list_folder_raw(settings.google_drive_folder_id)
+    folders = [f for f in raw if f.get("mimeType") == "application/vnd.google-apps.folder"]
+    images_ok = [f for f in raw if f.get("mimeType", "").startswith("image/") and f.get("md5Checksum")]
+    images_no_checksum = [f for f in raw if f.get("mimeType", "").startswith("image/") and not f.get("md5Checksum")]
+    other = [
+        f for f in raw
+        if f not in folders and f not in images_ok and f not in images_no_checksum
+    ]
+    return {
+        "total_items_na_raiz": len(raw),
+        "subpastas": [{"id": f["id"], "name": f["name"]} for f in folders],
+        "imagens_ok_sincronizaveis": len(images_ok),
+        "imagens_SEM_checksum_ignoradas": [f["name"] for f in images_no_checksum],
+        "outros_tipos_de_arquivo": [{"name": f["name"], "mimeType": f.get("mimeType")} for f in other],
+    }

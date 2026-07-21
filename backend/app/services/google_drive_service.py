@@ -69,6 +69,39 @@ def _get_client():
     return build("drive", "v3", http=authorized_http, cache_discovery=False)
 
 
+def debug_list_folder_raw(folder_id: str) -> list[dict]:
+    """Lista TUDO dentro da pasta (sem filtro de mimeType/checksum) — usado só
+    pra diagnosticar se tem subpastas ou arquivos sem md5Checksum sendo
+    ignorados pela sincronização normal."""
+    query = f"'{folder_id}' in parents and trashed=false"
+
+    if not _DRIVE_API_LOCK.acquire(timeout=_LOCK_WAIT_TIMEOUT_SECONDS):
+        raise TimeoutError("Drive ocupado processando outra requisição, tente novamente")
+    try:
+        items: list[dict] = []
+        page_token = None
+        client = _get_client()
+        while True:
+            response = (
+                client.files()
+                .list(
+                    q=query,
+                    fields="nextPageToken, files(id, name, mimeType, md5Checksum)",
+                    pageToken=page_token,
+                    pageSize=1000,
+                )
+                .execute()
+            )
+            items.extend(response.get("files", []))
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+    finally:
+        _DRIVE_API_LOCK.release()
+
+    return items
+
+
 def list_image_files(folder_id: str) -> list[DriveFile]:
     """Lista imagens da pasta, sem duplicar por paginação."""
     query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
